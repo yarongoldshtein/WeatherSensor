@@ -1,0 +1,11 @@
+Arduino Json:
+https://github.com/bblanchon/ArduinoJson/releases/tag/v5.13.0
+
+weather underground:
+https://www.wunderground.com/
+
+weather underground API DOCUMENTATION:
+https://www.wunderground.com/weather/api/d/docs?d=data/conditions&MR=1
+
+weather underground API KEY:
+08196a64ffb6e050
