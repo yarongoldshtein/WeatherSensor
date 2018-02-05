@@ -18,6 +18,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 **********/
 //https://www.wunderground.com/weather/il/haifa/32.797,35.005
+uint8_t step =0;
 #include <ESP8266WiFi.h>
 #ifndef min
 #define min(x,y) (((x)<(y))?(x):(y))
@@ -26,9 +27,14 @@ SOFTWARE.
 #define max(x,y) (((x)>(y))?(x):(y))
 #endif
 #include <ArduinoJson.h>
+#define RED 5
+#define GREEN 4
+#define BLUE 0
 
-const char SSID[]     = "elizurKelner";
-const char PASSWORD[] = "31213121";
+#define ON LOW
+#define OFF HIGH
+const char SSID[]     = "goldshtien";
+const char PASSWORD[] = "0523059065";
 
 // Use your own API key by signing up for a free developer account.
 // http://www.wunderground.com/weather/api/
@@ -37,12 +43,15 @@ const char PASSWORD[] = "31213121";
 // Specify your favorite location one of these ways.
 //#define WU_LOCATION "CA/HOLLYWOOD"
 
+
 // US ZIP code
 //#define WU_LOCATION ""
 //#define WU_LOCATION "90210"
 
 // Country and city
-#define WU_LOCATION "Australia/Sydney"
+//#define WU_LOCATION "Australia/Sydney"
+#define WU_LOCATION "Australia/Darwin"
+
 
 // 5 minutes between update checks. The free developer account has a limit
 // on the  number of calls so don't go wild.
@@ -63,6 +72,9 @@ const char WUNDERGROUND_REQ[] =
 
 void setup()
 {
+  pinMode(RED,OUTPUT);
+  pinMode(GREEN,OUTPUT);
+  pinMode(BLUE,OUTPUT);
   Serial.begin(115200);
 
   // We start by connecting to a WiFi network
@@ -88,6 +100,9 @@ static char respBuf[4096];
 
 void loop()
 {
+  digitalWrite(RED,OFF);
+  digitalWrite(GREEN,OFF);
+  digitalWrite(BLUE,OFF);
   // TODO check for disconnect from AP
 
   // Open socket to WU server port 80
@@ -190,9 +205,12 @@ bool showWeather(char *json)
   Serial.print(humi);   Serial.println(F(" RH"));
   const char *weather = current["weather"];
   Serial.println(weather);
-  Serial.print(F("precip "));
-  const char *precip = current["precip_today_metric"];
-  Serial.println(precip);
+  Serial.print(F("rain "));
+  const char *rainIn = current["precip_today_in"];
+  const char *rainMet = current["precip_today_metric"];
+  Serial.print(rainIn);  Serial.print(F(" in, "));
+  Serial.print(rainMet);  Serial.println(F(" mm"));
+  led(rainMet);
   const char *pressure_mb = current["pressure_mb"];
   Serial.println(pressure_mb);
   const char *observation_time = current["observation_time_rfc822"];
@@ -206,3 +224,22 @@ bool showWeather(char *json)
   Serial.println(local_tz_offset);
   return true;
 }
+int led(const char *c){
+  int x = atof(c);
+//  Serial.print(F(" c = "));
+//  Serial.println(c);
+//  Serial.print(F(" x = "));
+//  Serial.println(x);
+   if(x > 0){
+    if(x < 3){
+      digitalWrite(GREEN,ON);//GREEN
+    }else{
+      if(x<8){
+         digitalWrite(BLUE,ON);//BLUE
+        }else{
+         digitalWrite(RED,ON);//RED
+      }
+    }
+   }
+}
+
