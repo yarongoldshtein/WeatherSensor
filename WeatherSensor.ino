@@ -20,6 +20,7 @@ SOFTWARE.
 //https://www.wunderground.com/weather/il/haifa/32.797,35.005
 uint8_t step =0;
 #include <ESP8266WiFi.h>
+#include <FirebaseArduino.h>
 #ifndef min
 #define min(x,y) (((x)<(y))?(x):(y))
 #endif
@@ -30,11 +31,15 @@ uint8_t step =0;
 #define RED 5
 #define GREEN 4
 #define BLUE 0
+int PIR_Input = D6;
 
 #define ON LOW
 #define OFF HIGH
-const char SSID[]     = "goldshtien";
-const char PASSWORD[] = "0523059065";
+#define FIREBASE_HOST "smartumbrella-38d6e.firebaseio.com"
+#define FIREBASE_AUTH "b6UumNPNHJaKdNhttjN3edav2W7SqzSPbfzgkTtE"
+
+const char SSID[]     = "Elizur kelner";
+const char PASSWORD[] = "31213121";
 
 // Use your own API key by signing up for a free developer account.
 // http://www.wunderground.com/weather/api/
@@ -49,15 +54,7 @@ const char PASSWORD[] = "0523059065";
 //#define WU_LOCATION "90210"
 
 // Country and city
-//#define WU_LOCATION "Australia/Sydney"
 #define WU_LOCATION "Australia/Darwin"
-
-
-// 5 minutes between update checks. The free developer account has a limit
-// on the  number of calls so don't go wild.
-#define DELAY_NORMAL    (5*60*1000)
-// 20 minute delay between updates after an error
-#define DELAY_ERROR     (20*60*1000)
 
 #define WUNDERGROUND "api.wunderground.com"
 
@@ -72,6 +69,8 @@ const char WUNDERGROUND_REQ[] =
 
 void setup()
 {
+  pinMode(PIR_Input,INPUT);
+
   pinMode(RED,OUTPUT);
   pinMode(GREEN,OUTPUT);
   pinMode(BLUE,OUTPUT);
@@ -94,12 +93,20 @@ void setup()
   Serial.println(F("WiFi connected"));
   Serial.println(F("IP address: "));
   Serial.println(WiFi.localIP());
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+ 
 }
 
 static char respBuf[4096];
+static const char *location;
+static const char *rain;
+static const char *deg;
 
+int n = 0;
 void loop()
 {
+   
+   
   digitalWrite(RED,OFF);
   digitalWrite(GREEN,OFF);
   digitalWrite(BLUE,OFF);
@@ -114,7 +121,6 @@ void loop()
   const int httpPort = 80;
   if (!httpclient.connect(WUNDERGROUND, httpPort)) {
     Serial.println(F("connection failed"));
-    delay(DELAY_ERROR);
     return;
   }
 
@@ -157,7 +163,6 @@ void loop()
   if (respLen >= sizeof(respBuf)) {
     Serial.print(F("respBuf overflow "));
     Serial.println(respLen);
-    delay(DELAY_ERROR);
     return;
   }
   // Terminate the C string
@@ -167,11 +172,49 @@ void loop()
   //Serial.println(respBuf);
 
   if (showWeather(respBuf)) {
-    delay(DELAY_NORMAL);
+    for(int i =0;i<1800;i++){
+      if(digitalRead(PIR_Input)){
+        char l[20];
+        itoa(n,l,10);
+
+        char r[20];
+        itoa(n,r,10);
+
+        char d[20];
+        itoa(n,d,10);
+        n++;
+
+        char tmp = '/';
+        append(l, tmp);
+        append(r, tmp);
+        append(d, tmp);
+
+        tmp = 'l';
+        append(l, tmp);
+
+        tmp = 'r';
+        append(r, tmp);
+
+        tmp = 'd';
+        append(d, tmp);
+        
+        Firebase.pushString(l, location );
+        Firebase.pushString(r, rain );
+        Firebase.pushString(d, deg );
+    
+        // handle error
+        if (Firebase.failed()) {
+          Serial.print("setting /number failed:");
+          Serial.println(Firebase.error());  
+          return;
+        }
+        delay(5*1000);
+        break;
+      }
+    delay(100);
+    }
   }
-  else {
-    delay(DELAY_ERROR);
-  }
+    
 }
 
 bool showWeather(char *json)
@@ -200,6 +243,7 @@ bool showWeather(char *json)
   const float temp_f = current["temp_f"];
   Serial.print(temp_f, 1); Serial.print(F(" F, "));
   const float temp_c = current["temp_c"];
+  deg = current["temp_c"];
   Serial.print(temp_c, 1); Serial.print(F(" C, "));
   const char *humi = current[F("relative_humidity")];
   Serial.print(humi);   Serial.println(F(" RH"));
@@ -208,6 +252,7 @@ bool showWeather(char *json)
   Serial.print(F("rain "));
   const char *rainIn = current["precip_today_in"];
   const char *rainMet = current["precip_today_metric"];
+  rain = current["precip_today_metric"];
   Serial.print(rainIn);  Serial.print(F(" in, "));
   Serial.print(rainMet);  Serial.println(F(" mm"));
   led(rainMet);
@@ -220,16 +265,14 @@ bool showWeather(char *json)
   Serial.println(local_tz_short);
   const char *local_tz_long = current["local_tz_long"];
   Serial.println(local_tz_long);
+  location = current["local_tz_long"];
   const char *local_tz_offset = current["local_tz_offset"];
   Serial.println(local_tz_offset);
+
   return true;
 }
 int led(const char *c){
   int x = atof(c);
-//  Serial.print(F(" c = "));
-//  Serial.println(c);
-//  Serial.print(F(" x = "));
-//  Serial.println(x);
    if(x > 0){
     if(x < 3){
       digitalWrite(GREEN,ON);//GREEN
@@ -241,5 +284,10 @@ int led(const char *c){
       }
     }
    }
+}
+void append(char* s, char c) {
+        int len = strlen(s);
+        s[len] = c;
+        s[len+1] = '\0';
 }
 
